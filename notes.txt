@@ -1,0 +1,17 @@
+5-4-2017
+Corpus notes 
+
+* Bunch of books - project gutenberg
+* Start with preprocessing corpus
+ - Deal with different books
+ - Different languages
+ - Only consider sentences with "to be" in sentence
+ - parse trees, dependency trees for subject->to be relations
+
+* Unsupervised / supervised?
+ - Supervised -> will have to extract the tagged data from the corpus, use in supervised learning/classification problem
+ - Unsupervised -> generate bunch of features and throw at unsupervised learning model? Experiment with RNN/LSTM/Markov chain
+
+* Possible features : 
+ - subject properties : gender, number etc
+ - sentence : can tense be extracted?
