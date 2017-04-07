@@ -15,3 +15,27 @@ Corpus notes
 * Possible features : 
  - subject properties : gender, number etc
  - sentence : can tense be extracted?
+ - experiment with context windows before the "to be" sentences
+
+
+How the verb conjugates is dependent on the tense and information about the subject of the verb. So consider these approaches -> 
+1. go in blind and try word prediction based on the corpus or any other data.
+    - this seems to ignore the convenience of having a very small specific problem to solve
+    - might have to think about the features underneath regardless
+2. Consider predicting tense and subject information as separate problems and then have a mapping table for the verb conjugation.
+    - breaks down the task
+
+Word2Vec links : https://www.tensorflow.org/tutorials/word2vec
+https://rare-technologies.com/making-sense-of-word2vec/
+
+
+6-4-2017
+
+Cleaning
+* Remove unwanted symbols - unicode characters - decode to ascii - done. (bunch of decodes and encodes)
+* Sentences are truncated at arbitrary points. Combine everything into one giant blob of text. 
+[* Remove chapter titles
+* Remove empty lines
+* Use the projectgutenberg package?
+ - Removing legal/header/footer lines : https://github.com/c-w/Gutenberg]
+* 
