@@ -10,21 +10,28 @@ def predict_conjugation(sentence):
     # cases where sentence contains more than one blank
     blank_position = word_list.index('newword')
     earlier_word = word_list[blank_position-1]
+
+    # Initialize lemmatizer
+    lemmatizer = nltk.stem.wordnet.WordNetLemmatizer()
+
+    # Initialize preceeding words for conditional mood, future tense and infinitive form.
+    infinitive_preceeding_words = ['to', 'will', 'would', 'may', 'might', 'can', 'could']
+
     if earlier_word == 'have' or earlier_word == 'has':
         # Perfect tenses
         return 'been'
 
-    # Change this to all conjugations of 'to be'
-    elif earlier_word == 'be' or earlier_word == 'been':
+    elif lemmatizer.lemmatize(earlier_word, 'v') == 'be':
         # Continuous form of any tense
         return 'being'
 
-    elif earlier_word == 'will' or earlier_word == 'would':
-        # Future tense
+    elif earlier_word in infinitive_preceeding_words:
+        # Future tense, conditional mood or infinitive
         return 'be'
 
-    # Else parse and figure out present or past tense.
-    return "is"
+    else:
+        # Else parse and figure out present or past tense.
+        return "is"
 
 # Read input
 N = int(sys.stdin.readline().strip())
