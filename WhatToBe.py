@@ -71,7 +71,6 @@ def predict_subject_info(sentence, address):
                 subject_node_address = addr[0]
         subject_node = dependencies.get_by_address(subject_node_address)
 
-    # Subject - NN or Pronoun
     # POS tag sentence to get noun/pronoun
     pos_tags = nltk.pos_tag(nltk.word_tokenize(sentence))
     (subject_node_word, subject_node_tag) = pos_tags[subject_node_address-1]
@@ -130,46 +129,50 @@ def predict_conjugation(sentence, context):
     # Check word just before the blank.
     word_list = nltk.tokenize.word_tokenize(sentence)
     # cases where sentence contains more than one blank
-    blank_position = word_list.index('newword')
-    earlier_word = word_list[blank_position-1]
+    blank_positions = [index for index, word in enumerate(word_list) if word == 'newword']
+    result_conjugations = list()
+    for blank_position in blank_positions:
+        result = ""
+        earlier_word = "" if blank_position == 0 else word_list[blank_position-1]
 
-    # Initialize lemmatizer
-    lemmatizer = nltk.stem.wordnet.WordNetLemmatizer()
+        # Initialize lemmatizer
+        lemmatizer = nltk.stem.wordnet.WordNetLemmatizer()
 
-    # Initialize preceeding modifier words for conditional mood, future tense and infinitive form.
-    infinitive_preceeding_words = ['to', 'will', 'would', 'may', 'might', 'can', 'could']
-    determiners_singular = ['this', 'that', 'little', 'either', 'enough',
-                            'any', 'such', 'what', 'another', 'other']
-    determiners_plural = ['these', 'those', 'many', 'few', 'some', 'both', 'all']
+        # Initialize preceeding modifier words for conditional mood,
+        # future tense and infinitive form.
+        infinitive_preceeding_words = ['to', 'will', 'would', 'may', 'might', 'can', 'could']
+        determiners_singular = ['this', 'that', 'little', 'either', 'enough',
+                                'any', 'such', 'what', 'another', 'other']
+        determiners_plural = ['these', 'those', 'many', 'few', 'some', 'both', 'all']
 
-    if earlier_word == 'have' or earlier_word == 'has':
-        # Perfect tenses
-        return 'been'
+        if earlier_word == 'have' or earlier_word == 'has':
+            # Perfect tenses
+            result = 'been'
 
-    elif lemmatizer.lemmatize(earlier_word, 'v') == 'be':
-        # Continuous form of any tense
-        return 'being'
+        elif lemmatizer.lemmatize(earlier_word, 'v') == 'be':
+            # Continuous form of any tense
+            result = 'being'
 
-    elif earlier_word in infinitive_preceeding_words:
-        # Future tense, conditional mood or infinitive
-        return 'be'
+        elif earlier_word in infinitive_preceeding_words:
+            # Future tense, conditional mood or infinitive
+            result = 'be'
 
-    elif earlier_word in determiners_singular:
-        tense = predict_tense(sentence, context)
-        return lookup_conjugation('3S', tense)
+        elif earlier_word in determiners_singular:
+            tense = predict_tense(sentence, context)
+            result = lookup_conjugation('3S', tense)
 
-    elif earlier_word in determiners_plural:
-        tense = predict_tense(sentence, context)
-        return lookup_conjugation('3P', tense)
+        elif earlier_word in determiners_plural:
+            tense = predict_tense(sentence, context)
+            result = lookup_conjugation('3P', tense)
 
-    else:
-        # Else parse and figure out present or past tense.
-        tense = predict_tense(sentence, context)
-        # TODO : change this to multiple newwords
-        subject = predict_subject_info(sentence, word_list.index('newword'))
-        print tense
-        print subject
-        return "is"
+        else:
+            # Else parse and figure out present or past tense.
+            tense = predict_tense(sentence, context)
+            subject = predict_subject_info(sentence, blank_position + 1)
+            result = lookup_conjugation(subject, tense)
+        result_conjugations.append(result)
+    return result_conjugations
+
 
 # Read input
 N = int(sys.stdin.readline().strip())
@@ -178,13 +181,14 @@ N = int(sys.stdin.readline().strip())
 if N < 1 or N > 20:
     sys.exit()
 
-text = sys.stdin.readline().strip()
+text = sys.stdin.readline().strip().lower()
 text = text.replace('----', 'newword')
 list_of_sentences = nltk.tokenize.sent_tokenize(text)
 previous_sentences = chain([''], list_of_sentences[:-1])
 next_sentences = chain(list_of_sentences[1:], [''])
 context_sentences = zip(previous_sentences, next_sentences)
+result_list = list()
 for i in range(len(list_of_sentences)):
     if list_of_sentences[i].find('newword') != -1:
-        print predict_conjugation(list_of_sentences[i], context_sentences[i])
-        break
+        result_list = chain(result_list, predict_conjugation(list_of_sentences[i], context_sentences[i]))
+print "\n".join(result_list)
