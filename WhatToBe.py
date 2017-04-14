@@ -192,6 +192,9 @@ def predict_conjugation(sentence, context):
             tense = predict_tense(sentence, context, tagged_sentence, stanford_tagger)
             subject = predict_subject_info(sentence, blank_position + 1, tagged_sentence)
             result = lookup_conjugation(subject, tense)
+        if result == "":
+            # If all the previous lookup failed, return 'was'
+            result = 'was'
         result_conjugations.append(result)
     return result_conjugations
 
