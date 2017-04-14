@@ -12,15 +12,18 @@ def predict_tense(sentence, context):
     present_tense_tags = ['VBP', 'VBZ', 'VBG']
     past_tense_count = 0
     present_tense_count = 0
+    will_count = 0
     combined_text = ''.join(context)
     for (word, tag) in nltk.pos_tag(nltk.word_tokenize(sentence + combined_text)):
         if tag in past_tense_tags and word != 'newword':
-            print word, "past"
             past_tense_count += 1
         elif tag in present_tense_tags and word != 'newword':
-            print word, "present"
             present_tense_count += 1
-    prediction = "Present" if present_tense_count > past_tense_count else "Past"
+        elif word == 'will':
+            will_count += 1
+    prediction = "present" if present_tense_count > past_tense_count else "past"
+    if will_count >= max(present_tense_count, past_tense_count):
+        prediction = 'future'
     return prediction
 
 def find_related_node(dependency_graph, node_address, relation):
@@ -65,11 +68,15 @@ def predict_subject_info(sentence, address):
             deps = dependencies.get_by_address(related_node)['deps']
         else:
             dependency_lookup_failed = True
+    subject_node_address = -1
     if not dependency_lookup_failed:
         for key, addr in deps.iteritems():
             if key.find('nsubj') != -1:
                 subject_node_address = addr[0]
-        subject_node = dependencies.get_by_address(subject_node_address)
+        if subject_node_address == -1:
+            dependency_lookup_failed = True
+        else:
+            subject_node = dependencies.get_by_address(subject_node_address)
 
     # POS tag sentence to get noun/pronoun
     pos_tags = nltk.pos_tag(nltk.word_tokenize(sentence))
@@ -102,15 +109,21 @@ def predict_subject_info(sentence, address):
             person = '3'
 
     # Check if subject has a conjunction relation
-    if 'conj' in subject_node['deps'].keys():
+    if not dependency_lookup_failed and 'conj' in subject_node['deps'].keys():
         mult = 'P'
 
-    # TODO: Add default case where above doesn't work
     # Return result
+    if dependency_lookup_failed:
+        mult = 'S'
+        person = '3'
     return person + mult
 
 def lookup_conjugation(subject_info, tense_info):
     """This function looks up the conjugation and returns predicted conjugation."""
+    if tense_info == 'future':
+        # If tense predicted is future, current verb is not future
+        # since there is no 'will' preceeding it. Use 'present' as default
+        tense_info = 'present'
     conjugations = {('1S', 'present'): 'am', ('1P', 'present'): 'are',
                     ('2S', 'present'): 'are', ('2P', 'present'): 'are',
                     ('3S', 'present'): 'is', ('3P', 'present'): 'are',
@@ -134,13 +147,14 @@ def predict_conjugation(sentence, context):
     for blank_position in blank_positions:
         result = ""
         earlier_word = "" if blank_position == 0 else word_list[blank_position-1]
-
         # Initialize lemmatizer
         lemmatizer = nltk.stem.wordnet.WordNetLemmatizer()
 
         # Initialize preceeding modifier words for conditional mood,
         # future tense and infinitive form.
-        infinitive_preceeding_words = ['to', 'will', 'would', 'may', 'might', 'can', 'could']
+        # 'not' and 'n\'t' included for negations
+        infinitive_preceeding_words = ['to', 'will', 'would', 'may', 'might', 'can', 'could',
+                                       'n\'t', 'not']
         determiners_singular = ['this', 'that', 'little', 'either', 'enough',
                                 'any', 'such', 'what', 'another', 'other']
         determiners_plural = ['these', 'those', 'many', 'few', 'some', 'both', 'all']
@@ -174,21 +188,31 @@ def predict_conjugation(sentence, context):
     return result_conjugations
 
 
-# Read input
-N = int(sys.stdin.readline().strip())
+if __name__ == "__main__":
+    # Read input
+    N = int(sys.stdin.readline().strip())
 
-# Check if 1 <= N <= 20
-if N < 1 or N > 20:
-    sys.exit()
+    # Check if 1 <= N <= 20
+    if N < 1 or N > 20:
+        sys.exit()
 
-text = sys.stdin.readline().strip().lower()
-text = text.replace('----', 'newword')
-list_of_sentences = nltk.tokenize.sent_tokenize(text)
-previous_sentences = chain([''], list_of_sentences[:-1])
-next_sentences = chain(list_of_sentences[1:], [''])
-context_sentences = zip(previous_sentences, next_sentences)
-result_list = list()
-for i in range(len(list_of_sentences)):
-    if list_of_sentences[i].find('newword') != -1:
-        result_list = chain(result_list, predict_conjugation(list_of_sentences[i], context_sentences[i]))
-print "\n".join(result_list)
+    # Take input and preprocess, replace blanks with arbitrary word for easy processing
+    text = sys.stdin.readline().strip().lower()
+    text = text.replace('----', 'newword')
+
+    # Splitting into sentences by replace-split
+    list_of_sentences = text.replace('.', '\t').replace('?', '\t').replace('!', '\t').split('\t')
+
+    # Generate list of context sentences
+    previous_sentences = chain([''], list_of_sentences[:-1])
+    next_sentences = chain(list_of_sentences[1:], [''])
+    context_sentences = zip(previous_sentences, next_sentences)
+
+    # Call functions to predict conjugation for each sentence.
+    result_list = list()
+    for i in range(len(list_of_sentences)):
+        if list_of_sentences[i].find('newword') != -1:
+            result_list = chain(result_list, predict_conjugation(list_of_sentences[i], context_sentences[i]))
+
+    # Output
+    print "\n".join(result_list)
