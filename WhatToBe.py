@@ -6,7 +6,7 @@ from nltk.parse.stanford import StanfordDependencyParser
 from nltk.tag.stanford import StanfordPOSTagger
 
 
-def predict_tense(sentence, context, tagged_sentence):
+def predict_tense(sentence, context, tagged_sentence, stanford_tagger):
     """This function returns the most likely tense based on the sentence and its context.
     Checks current, previous and next sentences for conjugated verbs.
     Default is past tense"""
@@ -16,7 +16,8 @@ def predict_tense(sentence, context, tagged_sentence):
     present_tense_count = 0
     will_count = 0
     combined_text = ''.join(context)
-    for (word, tag) in tagged_sentence:
+    tagged_context = stanford_tagger.tag(nltk.word_tokenize(combined_text))
+    for (word, tag) in chain(tagged_sentence, tagged_context):
         if tag in past_tense_tags and word != 'newword':
             past_tense_count += 1
         elif tag in present_tense_tags and word != 'newword':
@@ -179,16 +180,16 @@ def predict_conjugation(sentence, context):
             result = 'be'
 
         elif earlier_word in determiners_singular:
-            tense = predict_tense(sentence, context, tagged_sentence)
+            tense = predict_tense(sentence, context, tagged_sentence, stanford_tagger)
             result = lookup_conjugation('3S', tense)
 
         elif earlier_word in determiners_plural:
-            tense = predict_tense(sentence, context, tagged_sentence)
+            tense = predict_tense(sentence, context, tagged_sentence, stanford_tagger)
             result = lookup_conjugation('3P', tense)
 
         else:
             # Else parse and figure out present or past tense.
-            tense = predict_tense(sentence, context, tagged_sentence)
+            tense = predict_tense(sentence, context, tagged_sentence, stanford_tagger)
             subject = predict_subject_info(sentence, blank_position + 1, tagged_sentence)
             result = lookup_conjugation(subject, tense)
         result_conjugations.append(result)
