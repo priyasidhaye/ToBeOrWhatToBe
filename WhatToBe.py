@@ -3,8 +3,10 @@ from itertools import chain
 import sys
 import nltk
 from nltk.parse.stanford import StanfordDependencyParser
+from nltk.tag.stanford import StanfordPOSTagger
 
-def predict_tense(sentence, context):
+
+def predict_tense(sentence, context, tagged_sentence):
     """This function returns the most likely tense based on the sentence and its context.
     Checks current, previous and next sentences for conjugated verbs.
     Default is past tense"""
@@ -14,7 +16,7 @@ def predict_tense(sentence, context):
     present_tense_count = 0
     will_count = 0
     combined_text = ''.join(context)
-    for (word, tag) in nltk.pos_tag(nltk.word_tokenize(sentence + combined_text)):
+    for (word, tag) in tagged_sentence:
         if tag in past_tense_tags and word != 'newword':
             past_tense_count += 1
         elif tag in present_tense_tags and word != 'newword':
@@ -36,7 +38,7 @@ def find_related_node(dependency_graph, node_address, relation):
                 return node_data['address']
     return -1
 
-def predict_subject_info(sentence, address):
+def predict_subject_info(sentence, address, tagged_sentence):
     """This function predicts the most likely information about the subject."""
     dependency_lookup_failed = False
     mult = ""
@@ -79,8 +81,7 @@ def predict_subject_info(sentence, address):
             subject_node = dependencies.get_by_address(subject_node_address)
 
     # POS tag sentence to get noun/pronoun
-    pos_tags = nltk.pos_tag(nltk.word_tokenize(sentence))
-    (subject_node_word, subject_node_tag) = pos_tags[subject_node_address-1]
+    (subject_node_word, subject_node_tag) = tagged_sentence[subject_node_address-1]
     subject_node_word = subject_node_word.lower()
     # Case : Noun
     if subject_node_tag == 'NN' or subject_node_tag == 'NNP':
@@ -138,6 +139,12 @@ def lookup_conjugation(subject_info, tense_info):
 
 def predict_conjugation(sentence, context):
     """This function takes as an input the sentence and returns the predicted conjugation."""
+    # POS-tag sentence to use in further methods
+    stanford_tagger = StanfordPOSTagger('C:\\Python27\\stanford-postagger-2016-10-31\\models\\' + \
+                                        'english-bidirectional-distsim.tagger',
+                                        path_to_jar='C:\\Python27\\stanford-postagger-' + \
+                                        '2016-10-31\\stanford-postagger-3.7.0.jar')
+    tagged_sentence = stanford_tagger.tag(nltk.word_tokenize(sentence))
     # Judge if future, perfect or continuous tenses :
     # Check word just before the blank.
     word_list = nltk.tokenize.word_tokenize(sentence)
@@ -156,7 +163,7 @@ def predict_conjugation(sentence, context):
         infinitive_preceeding_words = ['to', 'will', 'would', 'may', 'might', 'can', 'could',
                                        'n\'t', 'not']
         determiners_singular = ['this', 'that', 'little', 'either', 'enough',
-                                'any', 'such', 'what', 'another', 'other']
+                                'any', 'such', 'what', 'another', 'other', 'there']
         determiners_plural = ['these', 'those', 'many', 'few', 'some', 'both', 'all']
 
         if earlier_word == 'have' or earlier_word == 'has':
@@ -172,17 +179,17 @@ def predict_conjugation(sentence, context):
             result = 'be'
 
         elif earlier_word in determiners_singular:
-            tense = predict_tense(sentence, context)
+            tense = predict_tense(sentence, context, tagged_sentence)
             result = lookup_conjugation('3S', tense)
 
         elif earlier_word in determiners_plural:
-            tense = predict_tense(sentence, context)
+            tense = predict_tense(sentence, context, tagged_sentence)
             result = lookup_conjugation('3P', tense)
 
         else:
             # Else parse and figure out present or past tense.
-            tense = predict_tense(sentence, context)
-            subject = predict_subject_info(sentence, blank_position + 1)
+            tense = predict_tense(sentence, context, tagged_sentence)
+            subject = predict_subject_info(sentence, blank_position + 1, tagged_sentence)
             result = lookup_conjugation(subject, tense)
         result_conjugations.append(result)
     return result_conjugations
